@@ -7,3 +7,7 @@ diagnostics-*.txt
 .DS_Store
 .idea/
 .vscode/
+
+# Python test artifacts
+__pycache__/
+*.py[cod]

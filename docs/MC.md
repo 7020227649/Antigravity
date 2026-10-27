@@ -1,73 +1,95 @@
 # Module Contract (MC) and Architecture
-## Antigravity CLI on Termux
+## Standalone Antigravity IDE GUI on Termux
 
-Status: Design updated for native Android path | Version: 0.2 | Date: 2026-10-27
-
-MC means Module Contract: module responsibilities, interfaces, invariants and failure behavior.
+Status: GUI-first architecture | Version: 0.3 | Date: 2026-10-27
 
 ## 1. Architecture
 
-The primary path is native Termux on ARM64 Android. The official Antigravity CLI changelog says prebuilt native Android binaries were added in version 1.2.15. This is a better starting point than Debian PRoot, but the install script still must be smoke-tested on the target phone.
+The standalone IDE's official Linux ARM64 build runs in a Debian ARM64 PRoot userspace. Termux:X11 provides the Android display surface. The installer and launcher run in the native Termux shell.
 
     Android / Termux
       -> install.sh
-         -> preflight (Termux prefix, ARM64, permissions)
-         -> confirm and initialize log
-         -> Termux package metadata + curl/CA certificates
-         -> fetch official Google installer over HTTPS
-         -> run official installer in native Termux
-         -> locate agy
-         -> require agy --version to exit 0
-         -> summary and log path
+         -> host preflight + consent + lock/logs
+         -> termux-x11-nightly package
+         -> official Termux:X11 APK approval when required
+         -> official Google download page metadata
+         -> Debian ARM64 install/reuse
+         -> GUI libraries
+         -> official Antigravity archive validation
+         -> user-owned app bundle
+         -> launch-gui.sh
+              -> start X11 + open Android activity
+              -> wait for :1 display
+              -> login Debian as unprivileged antigravity user
+              -> bind Termux home at /mnt/termux-home
+              -> launch the original app executable
 
-The standard Google installation documentation does not guarantee all Android/Termux configurations. The project therefore treats this as an experimental compatibility route, not a guaranteed platform.
+PRoot shares the Android kernel. This architecture provides glibc userspace; it does not provide a separate Linux kernel or guarantee compatibility.
 
-## 2. Module contract
+## 2. Modules
 
 ### install.sh
-Inputs: --help, --yes, --native, --doctor; --proot and --gui intentionally reject for this release.
-Responsibilities: parse options before mutation, validate native Termux/ARM64, obtain consent, maintain log, install host prerequisites, fetch/run official installer, validate CLI, return accurate exit status.
-Invariants: no root, no implicit PRoot reset, no automatic sandbox disabling, no credentials collection, no success message when smoke test fails.
-Exit codes: 0 only for help/doctor or successful install+smoke test; 1 install/runtime failure; 2 invalid arguments or unsupported environment.
+Responsibilities: parse flags before mutations, validate host/architecture, show consent, set lock/logging, install Termux and Debian packages, resolve official artifact metadata, validate/extract the archive, install launch helpers, optionally start GUI.
 
-### Host preflight
-Validate Termux package prefix and pkg executable. Detect aarch64/arm64. Reject execution inside a standard Debian/PRoot shell or unsupported architecture before package changes.
+Arguments: --help, --yes, --no-launch, --doctor.
+Exit codes: 0 for help/doctor or completed installation path; 1 for failed installation/launch; 2 for invalid arguments or unsupported host.
 
-### Upstream installer stage
-Download https://antigravity.google/cli/install.sh over HTTPS with TLS verification to a temporary file. Ensure it is nonempty and begins with a shell shebang. Execute after the explicit confirmation. Do not modify the downloaded code, and do not treat this lightweight check as a cryptographic signature.
+Invariants:
+- No implicit Debian reset.
+- No unsafe no-sandbox default.
+- No unverified artifact URL fallback.
+- No success message when artifact/architecture validation fails.
+- Existing unmanaged application directory is never overwritten.
 
-### CLI validation
-Expected documented path is ~/.local/bin/agy or a command on PATH. Call agy --version and require exit status zero. This validates that the process starts and reports a version, but not authentication or agent execution.
+### lib/app-metadata.sh
+Exposes:
+- extract_antigravity_ide_url HTML_FILE
+- extract_antigravity_ide_version URL
 
-### Diagnostics
-Print selected Android/Termux fields, page size, storage and CLI path/version. Never dump env, tokens, cookies, keyring contents, home directory listings or project source. Nothing is uploaded.
+Accepts only an official Google CDN path for the Linux ARM64 standalone Antigravity IDE archive. Does not match x64 or the separate Antigravity App archive. Missing matches are errors, not guesses.
 
-### Future PRoot / GUI
-Do not implement as a flag that appears to work but does not. Any PRoot mode needs its own runtime diagnosis and end-to-end tests. Any GUI mode needs official artifact verification, display configuration and specific GPU claims backed by tests.
+### launch-gui.sh
+Checks the installed app, Termux:X11 APK and command, starts display :1 if needed, waits at most 30 seconds, optionally appends software-rendering flags, then executes the official app inside Debian as user antigravity with shared temporary directory and a bind mount of the Termux home.
 
-## 3. Source and integrity policy
+Default flags do not disable Chromium sandboxing. Arguments provided by the user are forwarded to the official app except the project-specific --software-rendering flag.
 
-- Official installer: https://antigravity.google/cli/install.sh
-- Official CLI docs: https://antigravity.google/docs/cli/install/
-- Official CLI changelog: https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md
-- Termux dependencies from configured Termux repositories.
-- Fetch official scripts to disk for review/debugging instead of piping directly into a shell.
-- HTTPS + a shell shebang check is not a digital signature. Use upstream checksums/signatures if published; never invent one.
-- Do not install unofficial patched/repacked binaries as default.
+### stop-gui.sh
+Sends a termination signal to the app process only. Does not stop the X11 server, because the user may be running other X11 applications.
 
-## 4. Logs and state
+### Debian bootstrap
+Installs dependencies inside Debian APT only. Trixie/newer transitional package names (t64) are selected separately. Verifies Debian architecture is arm64, creates an unprivileged user, validates the archive, checks its main ELF machine type, and installs via a staging directory. Installs a managed `xdg-open` bridge only when no user-defined `/usr/local/bin/xdg-open` exists; the bridge routes HTTP(S) links to Android's browser through Termux.
 
-Logs are stored below $HOME/.cache/antigravity-termux/logs, with a home-directory fallback. An atomic lock directory prevents concurrent install runs and recovers a lock only when its recorded process is no longer alive. Logs contain command output from the install attempt. Avoid shell environment dumps and do not include secrets in bug reports. Temporary downloaded scripts and the lock are removed on exit.
+### lib/resolve-download.py
+Parses official download-page HTML to find the same-origin JavaScript bundle URL when Google does not expose the IDE archive directly in the initial HTML. The shell downloads that bundle over HTTPS; the shell metadata parser extracts only the official Linux ARM64 standalone IDE URL. The helper does not download data itself.
 
-## 5. Failure categories
+### lib/xdg-open-termux.sh
+A Debian-side wrapper installed at `/usr/local/bin/xdg-open` when safe. It forwards HTTP(S) links to `TERMUX_PREFIX/bin/termux-open-url` and delegates other URL types to `/usr/bin/xdg-open`. The launcher passes `TERMUX_PREFIX`; OAuth callback behavior must be verified on a physical device.
 
-HOST_NOT_TERMUX, UNSUPPORTED_ARCH, PACKAGE_MANAGER_FAILED, NETWORK_OR_TLS, UPSTREAM_INSTALL_FAILED, CLI_NOT_FOUND, CLI_RUNTIME_INCOMPATIBLE, AUTHENTICATION_REQUIRED, STORAGE_LOW.
+### CI tests
+Static tests validate Bash syntax, help/invalid argument behavior and extraction of the correct standalone IDE URL from an HTML fixture. They do not simulate Android package installation, actual X11 display startup, or GUI rendering.
 
-## 6. Safety requirements
+## 3. External sources
 
-- Run as the regular Termux app user.
-- Do not write to system paths outside the Termux app prefix and the user's home.
-- Do not remove existing projects or Linux containers.
-- Do not disable application sandboxing.
-- Keep Google authentication inside the official CLI flow.
-- Never report installation success unless the CLI smoke test passes.
+- Official Antigravity download page: https://antigravity.google/download
+- Official Antigravity IDE download page: https://antigravity.google/download
+- Official Antigravity getting started: https://antigravity.google/docs/getting-started
+- Official Termux:X11 README: https://github.com/termux/termux-x11
+- Official proot-distro README: https://github.com/termux/proot-distro
+
+## 4. Paths and ownership
+
+- Debian app: /home/antigravity/.local/share/antigravity-ide
+- Debian user's workspace mount: /mnt/termux-home
+- Termux state/helpers: $HOME/.local/share/antigravity-termux
+- Termux logs: $HOME/.cache/antigravity-termux/logs
+
+The installed app directory is marked as managed by this project. Updates use a staging directory and replace only this marked directory. User settings and workspaces are outside the managed app directory.
+
+## 5. Security
+
+- HTTPS-only downloads and HTTPS redirects.
+- Archive path checks before extraction.
+- ELF architecture validation before activation.
+- GUI runs as unprivileged Debian user.
+- No automatic --no-sandbox; explicit flag only when the user accepts reduced isolation.
+- No credential collection or telemetry added by this project.

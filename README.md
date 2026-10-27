@@ -1,47 +1,75 @@
-# Antigravity for Termux
+# Standalone Antigravity IDE for Termux
 
-An experimental installer for attempting to run Google's Antigravity CLI (agy) on ARM64 Android through Termux.
+This project aims to run Google's **standalone Antigravity IDE desktop GUI** on an ARM64 Android phone using Termux, Debian ARM64 under PRoot, and the official Termux:X11 display server.
 
-**Important:** the preferred route is now the native Termux installer, because Google's CLI changelog says prebuilt Android binaries were added in version 1.2.15. The standard docs do not guarantee support for every phone/build, so this project validates the actual installed binary with agy --version rather than assuming the install succeeded. See the [upstream changelog](https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md) and [official installation guide](https://antigravity.google/docs/cli/install/).
+This is an experimental community compatibility project. It is not an Android port, and Google does not list Android/Termux/PRoot as a supported desktop platform. The official standalone Linux IDE requires glibc and libstdc++ versions documented on Google's download page. Termux:X11 supplies an Android X server and must be installed both as an Android APK and as a Termux package.
 
 ## One-shot install
 
-Install Termux from an official source such as [F-Droid](https://f-droid.org/packages/com.termux/) or [Termux GitHub releases](https://github.com/termux/termux-app/releases). Open the Termux app, then run:
+1. Install Termux from [official Termux releases](https://github.com/termux/termux-app/releases) or [F-Droid](https://f-droid.org/packages/com.termux/), then open it.
+2. Paste these commands into Termux:
 
-    pkg update
-    pkg install -y git
-    git clone https://github.com/7020227649/antigravity.git
-    cd antigravity
-    bash install.sh
+~~~bash
+pkg update
+pkg install -y git
+git clone https://github.com/7020227649/antigravity.git
+cd antigravity
+bash install.sh
+~~~
 
-Review install.sh before running it. It downloads the official Google installer over HTTPS, runs it in native Termux (not Debian/PRoot), then requires agy --version to pass. If verification fails, it returns an error and logs the failure instead of claiming success.
+The installer asks before changing packages. If Termux:X11's Android app is missing, it downloads the official universal debug APK and opens Android's package installer. Approve the Android prompt, return to Termux, and press Enter. Android's install-unknown-apps permission may need to be enabled for Termux.
 
-Options:
+The installer resolves the current Linux ARM64 **Antigravity IDE (Standalone)** archive from Google's official download page, falling back to the official page's JavaScript metadata when the link is not present in its HTML. It does not install the newer Antigravity App or the terminal-only CLI. It installs or reuses Debian without resetting existing containers, checks the downloaded archive, verifies the executable is AArch64, and writes launch helpers.
 
-    bash install.sh --help
-    bash install.sh --doctor
-    bash install.sh --native
-    bash install.sh --yes
+Google sign-in commonly opens an external browser. The installer adds a Debian `xdg-open` bridge that routes HTTP(S) links to Android's default browser through Termux. If Debian already has a custom `/usr/local/bin/xdg-open`, the installer preserves it; browser sign-in then may need manual configuration. The full browser callback still requires real-device verification.
 
-The --proot and --gui options are deliberately blocked in this release. They are not implemented as working paths; the native Android CLI path is the first priority.
+## Usage
 
-## What this does not guarantee
+Launch the original GUI:
 
-- Every Snapdragon, Android release or kernel layout works.
-- Authentication/browser handoff or a complete coding session will succeed just because agy --version passes.
-- A desktop IDE or Adreno GPU acceleration is available.
-- Google explicitly supports all Termux/device combinations.
+~~~bash
+antigravity
+~~~
 
-PRoot is not a VM: it shares the Android kernel. A Linux ARM64 executable can still fail due to kernel syscall restrictions even when Debian's userspace is correct.
+Stop the Antigravity GUI without shutting down Termux:X11:
 
-## Diagnostics
+~~~bash
+antigravity-stop
+~~~
 
-Run bash install.sh --doctor in native Termux. It prints selected device/runtime facts only; it does not upload reports or collect secrets. To report a failure, include the Android version/build, Termux source/version, uname -m, getconf PAGE_SIZE, available storage, exact command and sanitized error output. Never share tokens, cookies, OAuth callback URLs containing secrets, or private source code.
+Install/update without automatically opening the GUI:
 
-## Development
+~~~bash
+bash install.sh --no-launch
+~~~
 
-- [PRD](docs/PRD.md)
-- [Module contract](docs/MC.md)
+Read-only diagnostics:
+
+~~~bash
+bash install.sh --doctor
+~~~
+
+## Troubleshooting
+
+- **Termux:X11 does not open:** confirm the Termux:X11 Android app and the Termux package from the official X11 repository are both installed. Check the X11 log in $HOME/.cache/antigravity-termux/logs/x11.log.
+- **Blank window or GPU error:** try the command antigravity --software-rendering. Adreno acceleration is not guaranteed; software rendering may be slower.
+- **Chromium sandbox initialization error:** first inspect the error log. Only for trusted workspaces, an explicit antigravity --no-sandbox retry is available. This lowers Chromium's isolation and must not be enabled silently.
+- **Missing libraries:** rerun bash install.sh; review the install log in $HOME/.cache/antigravity-termux/logs/.
+- **Not enough storage:** several GB are required for Debian, GUI libraries, and the app archive. Six GB free is recommended.
+
+Inside the Debian GUI, the host Termux home is available at /mnt/termux-home so you can open projects from the phone's Termux home. Files are modified with the permissions of the Termux Android app user.
+
+## What is verified?
+
+GitHub Actions verifies shell syntax, command-line behavior, extraction of the standalone IDE URL from a representative download-page fixture, and fallback selection of the official JavaScript bundle. That does **not** prove the GUI starts on every Android phone. Before calling a device supported, a real-device test must confirm the window opens, authentication completes, and a simple agent task succeeds.
+
+GPU acceleration, auto-update behavior, audio and Chromium sandbox compatibility vary by Android build. Google does not officially support this environment.
+
+## Project docs
+
+- [Product requirements](docs/PRD.md)
+- [Module contract and architecture](docs/MC.md)
 - [Implementation plan](docs/PLAN.md)
-
-Run local checks with bash tests/smoke.sh and bash tests/mock-install.sh. The mock tests simulate upstream success, upstream failure and a failed CLI version check. They validate installer control flow, not real Android/Termux compatibility.
+- [Technical review](docs/REVIEW.md)
+- [Official Antigravity download](https://antigravity.google/download)
+- [Official Termux:X11 setup](https://github.com/termux/termux-x11)

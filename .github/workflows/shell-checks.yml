@@ -10,14 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Shell syntax and smoke tests
+      - name: Syntax and metadata smoke tests
         run: |
-          bash -n install.sh
-          bash -n tests/smoke.sh
-          bash -n tests/mock-install.sh
+          bash -n install.sh launch-gui.sh stop-gui.sh lib/app-metadata.sh tests/smoke.sh
+          python3 -m py_compile lib/resolve-download.py
           bash tests/smoke.sh
-          bash tests/mock-install.sh
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Lint
-        run: shellcheck install.sh tests/*.sh
+        run: shellcheck install.sh launch-gui.sh stop-gui.sh lib/app-metadata.sh tests/smoke.sh

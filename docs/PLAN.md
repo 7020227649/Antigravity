@@ -1,77 +1,54 @@
 # Implementation Plan
-## Antigravity CLI on Android via Termux
+## Standalone Antigravity IDE GUI on Android
 
-Version: 0.2 | Date: 2026-10-27
-Direction: native Termux first; Debian PRoot and GUI are not active install modes.
+Version: 0.3 | Date: 2026-10-27
+Product focus: standalone Antigravity IDE GUI, not CLI-only.
 
-## Milestone 0 — Repository foundation
-- [x] PRD, module contract and plan exist.
-- [x] README explains the project and limitations.
-- [x] Feature prototype reviewed against latest upstream changelog.
-- [x] Main branch updated with native-first route and more truthful smoke test behavior.
+## Milestone 0 — Direction
+- [x] Inspect official standalone IDE Linux ARM64 availability.
+- [x] Confirm Termux:X11 needs both Android APK and companion package.
+- [x] Replace CLI-only project objective with GUI-first objective.
+- [x] Replace the CLI-only installer with GUI install/launch path on main.
 
-## Milestone 1 — Native installer hardening
-- [x] Parse help/options before creating files.
-- [x] Check native Termux environment and ARM64.
-- [x] Download official installer to a temporary file over HTTPS.
-- [x] Require agy --version to return zero before success.
-- [x] Make unknown option/help paths read-only.
-- [x] Add install lock and stale-lock recovery.
-- [x] Add low-storage warning preflight.
-- [ ] Add network retry tests.
-- [ ] Confirm upstream install script selects a native Android build in real Termux.
+## Milestone 1 — Installer core
+- [x] Parse options/help before file mutations.
+- [x] Verify native Termux and ARM64.
+- [x] Install Termux:X11 package and request Android APK approval when missing.
+- [x] Resolve the current official standalone IDE ARM64 link from Google's download page or its JavaScript bundle.
+- [x] Install/reuse Debian without reset.
+- [x] Install GUI libraries according to Debian codename.
+- [x] Validate gzip/tar contents and AArch64 ELF.
+- [x] Use a staging directory and marked managed app path.
+- [x] Create unprivileged GUI user and launcher commands.
+- [x] Add optional Android browser handoff for external HTTP(S) links while preserving an existing user-defined xdg-open wrapper.
+- [x] Keep --no-sandbox opt-in.
+- [ ] Confirm on-device behavior of the official standalone IDE URL parser and archive layout.
 
-Acceptance: static CI passes; install errors return nonzero and never print success.
+## Milestone 2 — Display and launch
+- [x] Start Termux:X11 and open its Android activity.
+- [x] Wait for display readiness with a timeout.
+- [x] Share the Termux home into Debian at /mnt/termux-home.
+- [x] Add software-rendering troubleshooting and stop command.
+- [ ] Verify the PRoot login option combinations on actual Termux release.
+- [ ] Confirm IDE GUI window opens and is touch-usable.
+- [ ] Confirm sandbox behavior; document only evidence-based advice.
 
-## Milestone 2 — CI and mock testing
-- [x] Bash syntax checks.
-- [x] Smoke tests for help, unknown option and non-Termux doctor path.
-- [x] ShellCheck workflow.
-- [x] Add mocked pkg/curl/upstream-installer tests for success and failure paths.
-- [ ] Confirm CI has green status on main.
+## Milestone 3 — Quality
+- [x] Shell syntax and metadata fixture tests, including JavaScript-bundle fallback and browser handoff wrapper.
+- [x] ShellCheck CI.
+- [ ] Add mocked tests for archive extraction, Debian package failure and X11 timeout.
+- [ ] Confirm GitHub Actions latest run is green after current commit.
+- [ ] Test reinstallation and recovery from interrupted download.
 
-Acceptance: deterministic automated tests run without network or device access.
-
-## Milestone 3 — Physical-device validation
-- [ ] Test on a clean Termux install on Snapdragon ARM64.
-- [ ] Capture Android version/build, Termux source/version, page size, CLI version and result.
-- [ ] Confirm agy --version succeeds.
-- [ ] Complete Google login in the supported browser flow.
-- [ ] Run a trivial, non-destructive test task in a disposable directory.
-- [ ] Test another Android/kernel release before claiming broad support.
-- [ ] Document precise failure modes and recovery commands.
-
-Acceptance: reproducible end-to-end task on the named devices. This is the only milestone that can validate actual phone behavior.
-
-## Milestone 4 — Optional PRoot path (not prioritized)
-- [ ] Only revisit if there is a clear reason to support the Linux ARM64 binary separately.
-- [ ] Confirm kernel syscall behavior and CLI compatibility.
-- [ ] Never reset an existing distro or claim PRoot isolates Android kernel issues.
-
-## Milestone 5 — Desktop GUI research
-- [ ] Verify current official desktop Linux ARM64 artifact metadata.
-- [ ] Implement Termux:X11 only with a documented test device.
-- [ ] Test display, window lifecycle, sandbox and rendering.
-- [ ] Never promise Adreno acceleration without evidence.
-
-## Test matrix
-
-| Test | Expected |
-|---|---|
-| --help | Prints options with no filesystem changes |
-| Unknown option | Exit 2 before filesystem changes |
-| Non-Termux shell | Exit nonzero before package changes |
-| Non-ARM64 Termux | Exit nonzero before package changes |
-| Official download fails | Nonzero, log includes stage |
-| Official script fails | Nonzero, no success message |
-| agy missing after installer | Nonzero |
-| agy --version fails | Nonzero, no success message |
-| agy --version passes | Installer may report success but clearly says auth/session untested |
-| Real device agent task | Required before device-verified status |
+## Milestone 4 — Device validation
+- [ ] Test on one Snapdragon ARM64 phone with 8 GB RAM and at least 6 GB free storage (recommended target, not official minimum).
+- [ ] Record exact phone model, Android version/API, kernel/page size and Termux source.
+- [ ] Confirm app launches to original GUI.
+- [ ] Complete Google authentication.
+- [ ] Open a disposable project under /mnt/termux-home and run a small non-destructive task.
+- [ ] Test software-rendering fallback.
+- [ ] Test a second Android/kernel generation before broad compatibility claims.
 
 ## Definition of done
 
-- CI and mock tests pass.
-- Native official installer path is confirmed on at least one actual Android phone.
-- A complete auth + simple agent task passes on that phone.
-- Documentation states tested configurations and remaining unsupported scenarios.
+Static CI passes and a documented real-device test completes GUI launch, Google login and a simple task. If app launch fails on a device, record the exact logs and do not label that device supported. No universal "100% works" statement is allowed.
