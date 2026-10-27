@@ -124,7 +124,7 @@ info "Installing/updating Termux packages needed by the bootstrap..."
 pkg update
 pkg install -y proot-distro curl
 
-if ! proot-distro list 2>/dev/null | grep -Eiq '(^|[[:space:]])debian([[:space:]]|$)'; then
+if ! proot-distro list 2>/dev/null | grep -Eiq 'debian'; then
   info "Debian not detected by proot-distro; installing fresh Debian."
   proot-distro install debian
 else
@@ -136,7 +136,7 @@ ARCH="$(proot-distro login debian -- /usr/bin/dpkg --print-architecture 2>/dev/n
 [[ "$ARCH" == "arm64" ]] || die "Debian architecture check failed (reported: ${ARCH:-empty}; expected arm64). No distro reset was attempted." 1
 
 info "Installing Debian runtime packages..."
-proot-distro login debian -- /bin/bash -lc 'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y ca-certificates curl git xdg-utils dbus-x11' 
+proot-distro login debian -- /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/bash -c 'apt-get update && apt-get install -y ca-certificates curl git xdg-utils dbus-x11' 
 
 info "Running the official Google Antigravity CLI installer inside Debian."
 # Google documents this URL for Linux. Upstream script content and behavior may change;
@@ -144,8 +144,8 @@ info "Running the official Google Antigravity CLI installer inside Debian."
 proot-distro login debian -- /bin/bash -lc 'set -e; tmp="$(mktemp)"; trap '''rm -f "$tmp"''' EXIT; curl -fsSL https://antigravity.google/cli/install.sh -o "$tmp"; bash "$tmp"'
 
 info "Checking whether agy is installed..."
-if proot-distro login debian -- /bin/bash -lc 'command -v agy >/dev/null 2>&1'; then
-  proot-distro login debian -- /bin/bash -lc 'agy --version || agy --help' || warn "The CLI exists but its smoke test failed. This may indicate upstream Android/PRoot incompatibility."
+if proot-distro login debian -- /usr/bin/env PATH=/root/.local/bin:/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin /bin/bash -c 'command -v agy >/dev/null 2>&1'; then
+  proot-distro login debian -- /usr/bin/env PATH=/root/.local/bin:/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin /bin/bash -c 'agy --version || agy --help' || warn "The CLI exists but its smoke test failed. This may indicate upstream Android/PRoot incompatibility."
   log ""
   log "Setup command finished. Next, start Debian with:"
   log "  proot-distro login debian"
