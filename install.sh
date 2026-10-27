@@ -172,7 +172,7 @@ tmp="$(mktemp)"
 
 info "Downloading official installer from $OFFICIAL_INSTALLER_URL"
 curl --fail --location --silent --show-error --retry 2 --connect-timeout 15 \
-  --proto '=https' --tlsv1.2 "$OFFICIAL_INSTALLER_URL" -o "$tmp"
+  --proto '=https' --proto-redir '=https' --tlsv1.2 "$OFFICIAL_INSTALLER_URL" -o "$tmp"
 [[ -s "$tmp" ]] || die "The official installer download was empty."
 if ! head -n 1 "$tmp" | grep -qE '^#!.*(sh|bash)'; then
   die "Downloaded installer did not look like a shell script; refusing to execute it."
