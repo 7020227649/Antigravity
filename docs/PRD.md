@@ -1,102 +1,114 @@
 # Product Requirements Document (PRD)
-## Project: Antigravity on Android via Termux
-Status: Draft / experimental | Version: 0.1 | Date: 2026-10-27
+## Antigravity CLI on Android via Termux
+
+Status: Experimental | Version: 0.2 | Review date: 2026-10-27
 
 ## 1. Summary
-Build a one-shot installer and diagnostic toolkit that helps users attempt to run Google's Antigravity developer tooling on ARM64 Android phones using Termux. Prefer official Google-distributed Linux ARM64 artifacts. Do not claim Android is officially supported.
 
-The first milestone is CLI-first: install and test the official Antigravity CLI (`agy`) inside Debian ARM64 launched through Termux/`proot-distro`. An optional desktop GUI path may be researched later via Termux:X11.
+Build a one-shot installer and diagnostic toolkit for attempting to run Google's Antigravity CLI on ARM64 Android. Prefer the official native Termux-compatible route before considering Linux userlands.
+
+The upstream Antigravity CLI changelog states that prebuilt native Android binaries were added in version 1.2.15. Therefore, the project's default path is to run Google's official installer in native Termux and validate the result with the real CLI. Debian/PRoot is not the default: it shares Android's kernel and cannot remove syscall restrictions.
 
 ## 2. Problem
-Android users do not have a native Antigravity Android package. Termux and Debian PRoot offer a possible Linux user-space route, but do not replace the Android kernel or guarantee compatibility with desktop Linux assumptions about memory layout, keyrings, system services, sandboxing, browsers or graphics.
+
+The earlier prototype installed the Linux CLI inside Debian PRoot. This adds an extra userspace and still shares the Android kernel; it also cannot fix Android-specific syscall behavior. An install script may exit successfully while the resulting binary still fails to start. The project must test the actual CLI and never report success based only on downloads or extraction.
 
 ## 3. Goals
-- Provide one guided entry point after Termux prerequisites are installed.
-- Detect Termux, architecture, free storage, network, distro state and required commands before changing the system.
-- Set up or reuse Debian ARM64 using `proot-distro`.
-- Install dependencies and official Google Antigravity components when available.
-- Make steps idempotent and safely resumable.
-- Produce useful logs and redacted diagnostics.
-- Avoid root or bootloader unlocking requirements.
-- Offer cleanup instructions that do not delete user projects.
+
+- Offer one guided native-Termux installation entry point.
+- Check native Termux environment and ARM64 architecture before changing anything.
+- Use official Google distribution endpoints and keep the upstream source visible.
+- Require a successful CLI smoke test before reporting setup success.
+- Make help and diagnostics read-only; do not create logs or mutate the device for help.
+- Use persistent, useful logs for actual install attempts.
+- Fail clearly on upstream, runtime, authentication or unsupported-device issues.
+- Avoid root requirements, binary patching and collecting credentials.
+- Keep GUI/desktop support out of the default flow.
 
 ## 4. Non-goals
-- Claim Android/Termux/PRoot is officially supported by Google.
-- Bypass licensing, authentication or usage limits.
-- Guarantee every Snapdragon device or Adreno acceleration works.
-- Silently disable application security or enable privileged execution.
-- Collect/store Google credentials.
-- Use unofficial repackaged binaries by default.
 
-## 5. Users and stories
-Primary users have ARM64 Android and want a guided attempt through Termux. Advanced users need reproducible diagnostics for library, auth, memory-map, allocator or display failures.
-- Run one command and get a guided setup.
-- See the plan before installing.
-- Retry after failure without resetting Debian.
-- Export redacted diagnostics.
-- Choose CLI-only without GUI packages.
+- Guarantee every Snapdragon model or Android/kernel build works.
+- Claim Google supports all Android or Termux configurations.
+- Guarantee the desktop IDE, Adreno acceleration, keyring integration, browser handoff or a complete authenticated session.
+- Modify or patch Google's binary without a reproducible, maintained compatibility implementation.
+- Collect Google credentials or bypass account controls.
+- Install/remove Debian or delete user projects in the default mode.
+
+## 5. User stories
+
+- As an Android user, I run one command from native Termux and receive clear progress/failure messages.
+- As a user, I can inspect help and run diagnostics without making changes.
+- As a user, I can tell the difference between installation success and an actual executable smoke test.
+- As a user, I can share sanitized diagnostics without exposing tokens or private projects.
+- As a user, I am not asked to install Debian or GUI packages unless those become separately implemented, tested features.
 
 ## 6. Functional requirements
-### P0 — Installer
-- Strict error handling and clear stages.
-- Verify Termux host and ARM64 before changes.
-- Show the plan and confirm before substantial changes; `--yes` may skip confirmation only for non-destructive setup.
-- Use a lock, stable log path and cleanup traps.
-- Check storage and network early.
-- HTTPS sources; verify upstream signatures/checksums if published. Never invent hashes.
-- Never delete or reset a distro automatically.
-- Never enable `--no-sandbox` by default.
 
-### P0 — Debian
-- Install/reuse Debian through `proot-distro`.
-- Keep host packages separate from Debian APT packages.
-- Verify `dpkg --print-architecture` is `arm64`.
-- Make setup idempotent and report failures by stage.
+### P0 — Native installer
+- Accept --help, --yes, --native and --doctor.
+- Reject unknown options before creating logs or changing files.
+- Verify Termux package prefix and ARM64 host before installation.
+- Ask for consent before package changes and executing the downloaded installer; --yes skips this confirmation.
+- Update Termux package metadata and install only required host dependencies.
+- Download the official installer over HTTPS to a temporary file before execution.
+- Refuse an empty or obviously non-shell response.
+- Clean up temporary installer files on success, failure and interruption.
+- Do not silently invoke a PRoot route or disable sandboxing.
 
-### P0 — Official CLI
-- Use Google's documented CLI installation source and verify URL at implementation/release time.
-- Detect an existing `agy`.
-- Smoke-test version/help where supported; download success is not runtime success.
-- Keep authentication in Google's official interactive flow. Never request pasted OAuth tokens.
-- Diagnose runtime failures without changing memory settings or patching binaries automatically.
+### P0 — Correct validation
+- Locate the installed CLI in the upstream documented path or PATH.
+- Run agy --version and require a zero exit status.
+- If the smoke test fails, return nonzero and do not print a success message.
+- State explicitly that the smoke test does not validate authentication, model access, workspace tools or a full session.
+- Record the install output in a local log without collecting environment dumps or credentials.
 
 ### P1 — Diagnostics
-Report Android/Termux, architecture, Debian release, page size, storage, selected library presence and CLI version. Offer a redacted text report. Explain likely next steps for missing libraries, auth/keyring failure, `TCMalloc`/`MmapAligned` errors and X11 problems.
+- Report Android version/API, Termux version, architecture, page size, storage and CLI location/version.
+- Do not upload reports.
+- Suggest including device model, OS build, Termux source, exact failing command and sanitized output in issue reports.
 
-### P1 — GUI experiment
-Optional Termux:X11; CLI does not require display support. Only use official ARM64 desktop artifacts after checking current upstream metadata. Verify architecture and archive layout. GPU acceleration is best-effort. Software rendering is troubleshooting only; never lower sandbox security automatically.
+### P1 — Robustness
+- Preflight sufficient storage and network.
+- Add an install lock and stale-lock handling.
+- Add tests for failure exit codes and mocked installer behavior.
+- Keep the installer idempotent and safe to re-run.
+- Verify current official install script behavior with real-device tests across supported Termux installations.
 
-### P2 — Release quality
-Shell syntax/lint, mocked installer tests and CI. Document tested devices. Versioned releases and project-installer checksums.
+### P2 — Optional routes
+- Only add Debian/PRoot mode if it solves a demonstrated use case that is not served by the native CLI and has its own tests.
+- Only add desktop GUI/Termux:X11 after official artifact metadata and runtime behavior are verified.
+- Do not promise hardware acceleration without device-specific evidence.
 
 ## 7. Non-functional requirements
-Security: HTTPS, safe quoting, no `eval`, no credential capture, no silent sandbox weakening.
-Reliability: safe retries, atomic state, actionable errors.
-Transparency: show external sources and side effects.
-Maintainability: small ShellCheck-friendly modules.
-Portability: Termux host + Debian ARM64 container.
+
+Security: HTTPS downloads, shell quoting, no eval, no credentials capture, no silent sandbox weakening.
+Reliability: nonzero failure exit codes, cleanup traps, readable diagnostics, no false success.
+Transparency: describe all external code execution and side effects.
+Maintainability: small functions, ShellCheck and CI tests.
+Portability: native Termux ARM64 for the first milestone.
 
 ## 8. Success criteria
-1. Clean ARM64 Termux can install/reuse Debian without deleting user data.
-2. Installer completes official CLI install and smoke test, or reports a precise reproducible failure.
-3. Re-runs after interruption are safe.
-4. Automated shell tests pass.
-5. At least one real device is tested before a path is called verified.
-6. Limitations are explicit.
+
+1. Help/unknown-argument paths produce no filesystem changes.
+2. Non-Termux and non-ARM64 environments fail before package changes.
+3. Installer executes only an official script fetched over HTTPS.
+4. A nonzero agy --version result causes overall installer failure.
+5. CI shell syntax, smoke tests and ShellCheck pass.
+6. At least one real ARM64 Android device successfully installs, starts, authenticates and performs a simple test task before the project labels the path device-verified.
+7. Tests are repeated on more than one Android/kernel version before claiming broad support.
 
 ## 9. Risks
+
 | Risk | Mitigation |
 |---|---|
-| Android kernel/VA-layout incompatibility | Diagnostics, report upstream issue, no false success |
-| Upstream artifacts change | Use official metadata and available integrity checks |
-| GUI/system services fail | CLI-first and GUI optional |
-| RAM/storage limits | Preflight |
-| PRoot sandbox differences | Never silently disable app sandbox |
-| Supply-chain risk | Official endpoints, inspect sources where feasible |
-| User-data loss | Never reset/remove distro implicitly |
+| Upstream installer does not select native Android build | Fail at smoke test; confirm actual install script and artifact on device |
+| Android syscall/kernel incompatibility | Preserve logs, report exact error, do not patch binaries silently |
+| Auth/browser flow unsupported | Document as unverified until test |
+| User storage is low | Add storage preflight and clear estimate |
+| Upstream installer changes behavior | Review current source and regression-test before releases |
+| Installer fails but appears successful | Require zero-exit CLI smoke test |
+| Secret disclosure in diagnostics | Report only selected fields; never dump environment |
 
-## 10. Open questions
-Does the current CLI run on Android kernels under PRoot? Can auth/keyring work? What real-device minimums are sensible? Which GUI paths can be verified?
+## 10. Release status language
 
-## 11. Status language
-Use **Experimental** until real-device tests pass. **Device-tested** names the device/build and tests. Never claim “works on all Snapdragon phones” without evidence.
+Use Experimental until end-to-end device tests pass. Device-tested must identify the tested device/build and scenarios. Never claim "100% works on all Android phones."
