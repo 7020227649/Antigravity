@@ -69,7 +69,10 @@ else
   fail_status=$?
 fi
 [[ "$fail_status" -ne 0 ]]
-! grep -q 'SUCCESS: agy --version completed' <<<"$fail_output"
+if grep -q 'SUCCESS: agy --version completed' <<<"$fail_output"; then
+  echo "Failure path printed a success message." >&2
+  exit 1
+fi
 grep -q 'agy --version failed' <<<"$fail_output"
 
 if upstream_output="$(env "${BASE_ENV[@]}" HOME="$UPSTREAM_FAIL_HOME" FAKE_UPSTREAM_FAIL=1 bash "$ROOT/install.sh" --yes 2>&1)"; then
@@ -79,6 +82,9 @@ else
   upstream_status=$?
 fi
 [[ "$upstream_status" -ne 0 ]]
-! grep -q 'SUCCESS: agy --version completed' <<<"$upstream_output"
+if grep -q 'SUCCESS: agy --version completed' <<<"$upstream_output"; then
+  echo "Upstream failure path printed a success message." >&2
+  exit 1
+fi
 
 echo "Mock install tests passed: success, CLI failure, and upstream failure."
