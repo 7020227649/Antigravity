@@ -44,4 +44,4 @@ Run bash install.sh --doctor in native Termux. It prints selected device/runtime
 - [Module contract](docs/MC.md)
 - [Implementation plan](docs/PLAN.md)
 
-Run local checks with bash tests/smoke.sh. Passing these are static/preflight checks, not a physical-device compatibility test.
+Run local checks with bash tests/smoke.sh and bash tests/mock-install.sh. The mock tests simulate upstream success, upstream failure and a failed CLI version check. They validate installer control flow, not real Android/Termux compatibility.

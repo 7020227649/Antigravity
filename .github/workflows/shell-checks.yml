@@ -10,12 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Shell syntax and preflight smoke tests
+      - name: Shell syntax and smoke tests
         run: |
           bash -n install.sh
           bash -n tests/smoke.sh
+          bash -n tests/mock-install.sh
           bash tests/smoke.sh
+          bash tests/mock-install.sh
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Lint
-        run: shellcheck install.sh tests/smoke.sh
+        run: shellcheck install.sh tests/*.sh

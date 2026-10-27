@@ -68,9 +68,9 @@ The earlier prototype installed the Linux CLI inside Debian PRoot. This adds an 
 - Suggest including device model, OS build, Termux source, exact failing command and sanitized output in issue reports.
 
 ### P1 — Robustness
-- Preflight sufficient storage and network.
-- Add an install lock and stale-lock handling.
-- Add tests for failure exit codes and mocked installer behavior.
+- Warn when free storage is below 350 MiB and fail clearly on network/TLS errors.
+- Use an install lock with PID-based stale-lock recovery.
+- Test failure exit codes and mocked upstream/CLI success and failure behavior.
 - Keep the installer idempotent and safe to re-run.
 - Verify current official install script behavior with real-device tests across supported Termux installations.
 

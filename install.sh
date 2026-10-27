@@ -115,6 +115,31 @@ on_err() {
   exit "$rc"
 }
 trap on_err ERR
+LOCK_DIR="$HOME/.cache/$PROJECT_NAME/install.lock"
+tmp=""
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  owner=""
+  if [[ -r "$LOCK_DIR/pid" ]]; then
+    IFS= read -r owner < "$LOCK_DIR/pid" || true
+  fi
+  if [[ "$owner" =~ ^[0-9]+$ ]] && kill -0 "$owner" 2>/dev/null; then
+    die "Another installer appears to be running (PID $owner). If it is stale, remove $LOCK_DIR after verifying the process is gone." 1
+  fi
+  warn "Recovering a stale installer lock."
+  rm -f "$LOCK_DIR/pid"
+  rmdir "$LOCK_DIR" 2>/dev/null || die "Cannot recover stale installer lock at $LOCK_DIR." 1
+  mkdir "$LOCK_DIR" || die "Cannot acquire installer lock at $LOCK_DIR." 1
+fi
+printf "%s\n" "$$" > "$LOCK_DIR/pid"
+cleanup() {
+  if [[ -n "$tmp" ]]; then rm -f "$tmp"; fi
+  rm -f "$LOCK_DIR/pid" 2>/dev/null || true
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 
 cat <<'EOF'
 This installer will:
@@ -133,6 +158,10 @@ if (( ! YES )); then
   case "$answer" in y|Y|yes|YES) ;; *) log "Cancelled by user."; exit 0 ;; esac
 fi
 
+avail_kb="$(df -Pk "$HOME" 2>/dev/null | awk 'NR == 2 {print $4}')"
+if [[ "$avail_kb" =~ ^[0-9]+$ ]] && (( avail_kb < 350000 )); then
+  warn "Less than 350 MiB of free storage was detected. The install may fail if space runs out."
+fi
 info "Updating Termux package metadata..."
 pkg update 2>&1 | tee -a "$LOG_FILE"
 info "Installing curl and CA certificates..."
@@ -140,8 +169,6 @@ pkg install -y curl ca-certificates 2>&1 | tee -a "$LOG_FILE"
 command -v curl >/dev/null 2>&1 || die "curl is not available after package installation."
 
 tmp="$(mktemp)"
-cleanup() { rm -f "$tmp"; }
-trap cleanup EXIT
 
 info "Downloading official installer from $OFFICIAL_INSTALLER_URL"
 curl --fail --location --silent --show-error --retry 2 --connect-timeout 15 \

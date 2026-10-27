@@ -57,7 +57,7 @@ Do not implement as a flag that appears to work but does not. Any PRoot mode nee
 
 ## 4. Logs and state
 
-Logs are stored below $HOME/.cache/antigravity-termux/logs, with a home-directory fallback. Logs contain command output from the install attempt. Avoid shell environment dumps and don't include secrets in bug reports. Temporary downloaded scripts must be removed on exit.
+Logs are stored below $HOME/.cache/antigravity-termux/logs, with a home-directory fallback. An atomic lock directory prevents concurrent install runs and recovers a lock only when its recorded process is no longer alive. Logs contain command output from the install attempt. Avoid shell environment dumps and do not include secrets in bug reports. Temporary downloaded scripts and the lock are removed on exit.
 
 ## 5. Failure categories
 

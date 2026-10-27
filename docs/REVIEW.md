@@ -19,7 +19,7 @@ The repository has now been changed to prefer the native Termux route. The upstr
 
 - No real Android device is attached to this review environment; native Termux install, Google login and actual agent execution remain unverified.
 - The upstream installer behavior must be checked on the actual Termux build; a shell download and a filename do not prove the correct Android artifact was selected.
-- Storage preflight, install locking, stale-lock recovery and mocked failure-path tests are still future hardening tasks.
+- No physical Android device was available; end-to-end native installer selection, Google login and agent execution remain unverified.
 - The project cannot honestly promise 100% support for all Snapdragon/Android combinations.
 
 ## References

@@ -16,8 +16,9 @@ Direction: native Termux first; Debian PRoot and GUI are not active install mode
 - [x] Download official installer to a temporary file over HTTPS.
 - [x] Require agy --version to return zero before success.
 - [x] Make unknown option/help paths read-only.
-- [ ] Add install lock and robust stale-lock recovery.
-- [ ] Add storage preflight and network retry tests.
+- [x] Add install lock and stale-lock recovery.
+- [x] Add low-storage warning preflight.
+- [ ] Add network retry tests.
 - [ ] Confirm upstream install script selects a native Android build in real Termux.
 
 Acceptance: static CI passes; install errors return nonzero and never print success.
@@ -26,7 +27,7 @@ Acceptance: static CI passes; install errors return nonzero and never print succ
 - [x] Bash syntax checks.
 - [x] Smoke tests for help, unknown option and non-Termux doctor path.
 - [x] ShellCheck workflow.
-- [ ] Add mocked pkg/curl/upstream-installer tests for success and failure paths.
+- [x] Add mocked pkg/curl/upstream-installer tests for success and failure paths.
 - [ ] Confirm CI has green status on main.
 
 Acceptance: deterministic automated tests run without network or device access.
