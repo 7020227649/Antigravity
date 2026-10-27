@@ -1,11 +1,14 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-fail=0
-bash -n "$ROOT/install.sh" || fail=1
-bash -n "$ROOT/tests/smoke.sh" || fail=1
-if (( fail )); then
-  echo "Shell syntax tests failed." >&2
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[[ -f "$ROOT/install.sh" ]]
+bash -n "$ROOT/install.sh"
+bash -n "$ROOT/tests/smoke.sh"
+help_output="$(bash "$ROOT/install.sh" --help)"
+grep -q -- '--doctor' <<<"$help_output"
+grep -q -- '--cli-only' <<<"$help_output"
+if bash "$ROOT/install.sh" --bogus >/dev/null 2>&1; then
+  echo "Unexpectedly accepted unknown option" >&2
   exit 1
 fi
-echo "Shell syntax tests passed."
+echo "Installer syntax and argument smoke tests passed."
