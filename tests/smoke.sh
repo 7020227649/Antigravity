@@ -22,15 +22,17 @@ if env -u PREFIX bash "$ROOT/install.sh" --doctor >/dev/null 2>&1; then
   echo "Doctor should reject a non-Termux shell." >&2
   exit 1
 fi
-grep -Fq 'proot-distro login --user antigravity --shared-tmp --bind "$HOME:/mnt/termux-home" debian --' "$ROOT/launch-gui.sh"
-grep -Fq '/home/antigravity/.local/share/antigravity-ide/$APP_REL' "$ROOT/launch-gui.sh"
+expected_login='proot-distro login --user antigravity --shared-tmp --bind "$HOME:/mnt/termux-home" debian --'
+expected_executable='/home/antigravity/.local/share/antigravity-ide/$APP_REL'
+grep -Fq "$expected_login" "$ROOT/launch-gui.sh"
+grep -Fq "$expected_executable" "$ROOT/launch-gui.sh"
 grep -Fq 'lib/resolve-download.py' "$ROOT/install.sh"
 
 printf '%s\n' \
   '<a href="https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/linux-arm/Antigravity%20IDE.tar.gz">Standalone IDE Linux ARM64</a>' \
   '<a href="https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/linux-x64/Antigravity%20IDE.tar.gz">x64 IDE decoy</a>' \
   '<a href="https://storage.googleapis.com/antigravity-public/antigravity-hub/2.26.0-6546645232517120/linux-arm/Antigravity.tar.gz">Antigravity App decoy</a>' > "$TMP/download.html"
-# shellcheck source=../lib/app-metadata.sh
+# shellcheck source=lib/app-metadata.sh
 source "$ROOT/lib/app-metadata.sh"
 url="$(extract_antigravity_ide_url "$TMP/download.html")"
 [[ "$url" == "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/linux-arm/Antigravity%20IDE.tar.gz" ]]

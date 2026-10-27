@@ -193,7 +193,8 @@ fi
 
 ARCH="$(proot-distro login debian -- /usr/bin/dpkg --print-architecture 2>/dev/null | tail -n 1 || true)"
 [[ "$ARCH" == "arm64" ]] || die "Debian architecture is '$ARCH', expected arm64. Existing containers were not reset." 1
-DEBIAN_CODENAME="$(proot-distro login debian -- /bin/bash -c '. /etc/os-release; printf "%s" "${VERSION_CODENAME:-unknown}"')"
+DEBIAN_RELEASE_CMD='. /etc/os-release; printf "%s" "${VERSION_CODENAME:-unknown}"'
+DEBIAN_CODENAME="$(proot-distro login debian -- /bin/bash -c "$DEBIAN_RELEASE_CMD")"
 case "$DEBIAN_CODENAME" in
   trixie|forky|sid|testing|unstable)
     AUDIO_ATK_PKGS=(libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 libgtk-3-0t64)
@@ -217,6 +218,7 @@ info "Creating an unprivileged GUI user inside Debian."
 proot-distro login debian -- /bin/bash -c 'id antigravity >/dev/null 2>&1 || useradd --create-home --shell /bin/bash antigravity; mkdir -p /mnt/termux-home /home/antigravity/.local/share; chown antigravity:antigravity /home/antigravity/.local /home/antigravity/.local/share'
 
 info "Downloading and validating the official Antigravity IDE archive inside Debian."
+# shellcheck disable=SC2016
 proot-distro login debian -- /usr/bin/env ANTIGRAVITY_URL="$APP_URL" ANTIGRAVITY_VERSION="$APP_VERSION" /bin/bash -c '
 set -Eeuo pipefail
 APP_DIR=/home/antigravity/.local/share/antigravity-ide
