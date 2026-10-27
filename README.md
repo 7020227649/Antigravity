@@ -4,36 +4,43 @@ An experimental project exploring whether Google's Antigravity CLI—and optiona
 
 **Unofficial and experimental.** Google does not list Android/Termux PRoot as a supported environment. Snapdragon/ARM64 hardware does not guarantee compatibility. CLI is the first priority; desktop GUI and Adreno acceleration are optional research tasks.
 
-## Current status
-This repository is in planning and initial implementation. Read the [PRD](docs/PRD.md), [module contract](docs/MC.md) and [implementation plan](docs/PLAN.md). A successful download is not evidence of a successful launch.
+## One-shot installer (CLI-first alpha)
 
-## Intended workflow
-The target user experience after implementation is:
+Run these commands in the **Termux app itself**, not inside a Debian shell:
 
 ```bash
+pkg update
 pkg install -y git
 git clone https://github.com/7020227649/antigravity.git
 cd antigravity
 bash install.sh
 ```
 
-**The complete one-shot installer is not implemented yet in this commit.** Do not treat this command as functional until `install.sh` lands and is tested.
+Review the script before running it. It installs/reuses Debian via `proot-distro`, installs baseline tools, and then invokes Google's documented CLI installer inside Debian. It asks for confirmation; `--yes` skips that prompt but does not enable destructive resets.
 
-## Planned features
-- Termux and ARM64 preflight checks.
-- Debian ARM64 setup through `proot-distro`.
-- Official Google Antigravity CLI installation attempt.
-- Safe retries, logs, recovery guidance and diagnostic mode.
-- Optional Termux:X11 desktop experiment after CLI compatibility testing.
+Options:
+- `bash install.sh --help`
+- `bash install.sh --doctor`
+- `bash install.sh --cli-only`
+- `bash install.sh --yes`
 
-## Limitations and safety
-- Android and Debian PRoot share the Android kernel. A Linux ARM64 binary may fail due to memory layout, keyring, browser auth, missing system services or graphics.
-- Installer will not silently delete an existing Debian environment or project files.
-- GUI mode will not promise Adreno GPU acceleration.
-- Installer will not disable the app sandbox automatically.
-- Prefer official Google distribution endpoints; avoid repackaged binaries by default.
+The `--gui` option is reserved and intentionally exits with a message; GUI mode is not implemented yet.
 
-## Report a result
-Include phone/chipset, Android build, Termux version/source, `uname -m`, `dpkg --print-architecture`, Debian release, `getconf PAGE_SIZE`, available storage, exact command and sanitized error. Never submit tokens, cookies, secret-bearing OAuth callback URLs or private source files.
+## Current limitations
+- Google does not list Android/Termux PRoot as a supported environment.
+- PRoot shares the Android kernel; memory layout, allocator, browser authentication, keyring, missing system services and graphics can fail.
+- The script checks for Debian before installing and never resets an existing distro.
+- The installer does not request root, collect credentials or automatically disable sandboxing.
+- CLI installation and a version/help smoke test do not guarantee an authenticated coding session.
+- Adreno hardware acceleration is not promised.
 
-See [docs/PLAN.md](docs/PLAN.md) for milestones.
+## Development
+Read [PRD](docs/PRD.md), [Module Contract](docs/MC.md) and [Plan](docs/PLAN.md).
+Run basic static tests with:
+
+```bash
+bash tests/smoke.sh
+```
+
+## Diagnostic reports
+Include device/chipset, Android build, Termux version/source, `uname -m`, Debian architecture/release, `getconf PAGE_SIZE`, available storage and sanitized error output. Never post tokens, cookies or secret-bearing OAuth callback URLs.
