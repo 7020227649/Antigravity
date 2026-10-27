@@ -193,6 +193,7 @@ fi
 
 ARCH="$(proot-distro login debian -- /usr/bin/dpkg --print-architecture 2>/dev/null | tail -n 1 || true)"
 [[ "$ARCH" == "arm64" ]] || die "Debian architecture is '$ARCH', expected arm64. Existing containers were not reset." 1
+# shellcheck disable=SC2016
 DEBIAN_RELEASE_CMD='. /etc/os-release; printf "%s" "${VERSION_CODENAME:-unknown}"'
 DEBIAN_CODENAME="$(proot-distro login debian -- /bin/bash -c "$DEBIAN_RELEASE_CMD")"
 case "$DEBIAN_CODENAME" in

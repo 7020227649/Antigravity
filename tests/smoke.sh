@@ -22,7 +22,9 @@ if env -u PREFIX bash "$ROOT/install.sh" --doctor >/dev/null 2>&1; then
   echo "Doctor should reject a non-Termux shell." >&2
   exit 1
 fi
+# shellcheck disable=SC2016
 expected_login='proot-distro login --user antigravity --shared-tmp --bind "$HOME:/mnt/termux-home" debian --'
+# shellcheck disable=SC2016
 expected_executable='/home/antigravity/.local/share/antigravity-ide/$APP_REL'
 grep -Fq "$expected_login" "$ROOT/launch-gui.sh"
 grep -Fq "$expected_executable" "$ROOT/launch-gui.sh"
