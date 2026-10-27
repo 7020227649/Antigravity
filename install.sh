@@ -129,7 +129,7 @@ proot-distro login debian -- /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/ba
 
 info "Fetching Google's official CLI install script inside Debian..."
 # Upstream content can change. User confirmation above precedes its execution.
-proot-distro login debian -- /usr/bin/env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /bin/bash -c 'set -e; tmp="$(mktemp)"; trap '''rm -f "$tmp"''' EXIT; curl -fsSL https://antigravity.google/cli/install.sh -o "$tmp"; bash "$tmp"'
+proot-distro login debian -- /usr/bin/env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /bin/bash -c 'set -e; tmp="$(mktemp)"; trap "rm -f \"$tmp\"" EXIT; curl -fsSL https://antigravity.google/cli/install.sh -o "$tmp"; bash "$tmp"'
 
 info "Checking CLI command..."
 if proot-distro login debian -- /usr/bin/env PATH=/root/.local/bin:/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin /bin/bash -c 'command -v agy >/dev/null 2>&1'; then
