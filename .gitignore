@@ -1,0 +1,9 @@
+# Local runtime state and logs
+.antigravity-state/
+*.log
+diagnostics-*.txt
+
+# Editor/OS files
+.DS_Store
+.idea/
+.vscode/
