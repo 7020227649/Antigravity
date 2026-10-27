@@ -11,11 +11,7 @@ mkdir -p "$LOG_DIR" "$STATE_DIR" 2>/dev/null || true
 LOG_FILE="$LOG_DIR/install-$(date +%Y%m%d-%H%M%S).log"
 : > "$LOG_FILE" 2>/dev/null || LOG_FILE="$HOME/.antigravity-termux-install.log"
 
-RED=''
-GREEN=''
-YELLOW=''
-BLUE=''
-RESET=''
+RED='' GREEN='' YELLOW='' BLUE='' RESET=''
 if [[ -t 1 ]]; then
   RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; BLUE=$'\033[34m'; RESET=$'\033[0m'
 fi
@@ -25,32 +21,27 @@ info() { printf '%s[INFO]%s %s\n' "$BLUE" "$RESET" "$*" | tee -a "$LOG_FILE"; }
 warn() { printf '%s[WARN]%s %s\n' "$YELLOW" "$RESET" "$*" | tee -a "$LOG_FILE" >&2; }
 die() { local code="${2:-1}"; printf '%s[ERROR]%s %s\n' "$RED" "$RESET" "$1" | tee -a "$LOG_FILE" >&2; exit "$code"; }
 have() { command -v "$1" >/dev/null 2>&1; }
+
 usage() {
   cat <<'EOF'
 Antigravity for Termux — experimental one-shot installer
 
-Usage:
-  bash install.sh [options]
-
-Options:
-  --help        Show this help and exit without making changes
-  --yes         Skip the confirmation prompt (still no destructive resets)
-  --cli-only    Install/test the official CLI path (default)
-  --gui         Reserved for future optional Termux:X11 GUI experiment
+Usage: bash install.sh [options]
+  --help        Show this help without changes
+  --yes         Skip confirmation (no destructive resets are performed)
+  --cli-only    Install/test official CLI path (default)
+  --gui         Reserved for future optional Termux:X11 experiment
   --doctor      Run platform diagnostics only
 EOF
 }
-YES=0
-DOCTOR=0
-GUI=0
-CLI_ONLY=1
+YES=0 DOCTOR=0 GUI=0
 while (($#)); do
   case "$1" in
     --help|-h) usage; exit 0 ;;
     --yes|-y) YES=1 ;;
     --doctor) DOCTOR=1 ;;
-    --gui) GUI=1; CLI_ONLY=0 ;;
-    --cli-only) CLI_ONLY=1; GUI=0 ;;
+    --gui) GUI=1 ;;
+    --cli-only) GUI=0 ;;
     *) usage; die "Unknown option: $1" 2 ;;
   esac
   shift
@@ -58,16 +49,17 @@ done
 
 on_err() {
   local rc=$?
-  warn "Installation stopped (exit $rc). See the log: $LOG_FILE"
+  warn "Installation stopped (exit $rc). See log: $LOG_FILE"
   exit "$rc"
 }
 trap on_err ERR
 
 check_host() {
   [[ -n "${PREFIX:-}" && "$PREFIX" == *com.termux* ]] || die "Run this script inside the Termux app, not inside Debian or a desktop shell." 2
-  [[ "$(uname -m)" == "aarch64" || "$(uname -m)" == "arm64" ]] || die "This initial release targets ARM64 Termux. Detected: $(uname -m)" 2
+  local arch
+  arch="$(uname -m)"
+  [[ "$arch" == "aarch64" || "$arch" == "arm64" ]] || die "This initial release targets ARM64 Termux. Detected: $arch" 2
   have pkg || die "Termux package manager 'pkg' was not found." 2
-  have proot-distro || true
 }
 doctor() {
   echo "== Antigravity for Termux diagnostics =="
@@ -78,13 +70,12 @@ doctor() {
   printf 'Storage available: '
   df -h "$HOME" 2>/dev/null | tail -n 1 || true
   printf 'proot-distro: '
-  if have proot-distro; then proot-distro --version 2>&1 | head -n 1 || echo installed; else echo missing; fi
+  if have proot-distro; then echo installed; else echo missing; fi
   printf 'Termux:X11 command: '
-  have termux-x11 && echo installed || echo not-installed
+  if have termux-x11; then echo installed; else echo not-installed; fi
   printf 'Debian state: '
   if have proot-distro; then proot-distro list 2>/dev/null | grep -i debian || echo "not detected"; else echo "proot-distro missing"; fi
-  echo
-  echo "No environment variables, tokens, or project source files are collected."
+  echo "No environment variables, tokens, or project files are collected."
 }
 if ((DOCTOR)); then
   check_host
@@ -93,70 +84,64 @@ if ((DOCTOR)); then
 fi
 
 check_host
-
 if ((GUI)); then
-  warn "GUI mode is not implemented yet. Continuing is intentionally blocked to avoid implying desktop support."
-  die "Use --cli-only. Termux:X11 desktop support will be added after the CLI path is tested." 2
+  die "GUI mode is not implemented yet. Use --cli-only; desktop support will be added after CLI testing." 2
 fi
 
 cat <<'EOF'
 This installer will:
   1. Update Termux package metadata and install proot-distro/curl.
-  2. Install Debian only if proot-distro does not already list it.
-  3. Install basic Linux runtime tools inside Debian.
-  4. Run Google's official Antigravity CLI installer inside Debian.
-  5. Attempt a non-interactive smoke check where supported.
+  2. Install Debian only if it is not already listed by proot-distro.
+  3. Install basic Linux tools inside Debian.
+  4. Fetch and run Google's official Antigravity CLI installer inside Debian.
+  5. Attempt a CLI version/help smoke check.
 
-Compatibility is experimental. Google does not officially list Android/Termux/PRoot as a supported platform.
-The installer will not reset or delete an existing Debian distro or enable --no-sandbox.
+Compatibility is experimental. Google does not officially list Android/Termux/PRoot as supported.
+This script does not reset/delete existing Debian and does not enable --no-sandbox.
 EOF
 if (( ! YES )); then
-  read -r -p "Proceed with the CLI-only setup? [y/N] " answer
-  [[ "$answer" == "y" || "$answer" == "Y" || "$answer" == "yes" || "$answer" == "YES" ]] || { log "Cancelled by user."; exit 0; }
+  read -r -p "Proceed with CLI-only setup? [y/N] " answer
+  case "$answer" in y|Y|yes|YES) ;; *) log "Cancelled by user."; exit 0 ;; esac
 fi
 
 info "Log file: $LOG_FILE"
-info "Checking network..."
-have curl || { info "Installing curl..."; pkg install -y curl; }
-curl -fsSI --connect-timeout 10 https://antigravity.google/cli/install.sh >/dev/null || die "Cannot reach the official Antigravity CLI installer over HTTPS. Check network/time/TLS and retry." 1
+have curl || pkg install -y curl
+info "Checking official installer URL over HTTPS..."
+curl -fsSI --connect-timeout 10 https://antigravity.google/cli/install.sh >/dev/null || die "Cannot reach Google's CLI installer over HTTPS. Check network/time/TLS and retry." 1
 
-info "Installing/updating Termux packages needed by the bootstrap..."
+info "Updating Termux package metadata and installing proot-distro..."
 pkg update
 pkg install -y proot-distro curl
 
 if ! proot-distro list 2>/dev/null | grep -Eiq 'debian'; then
-  info "Debian not detected by proot-distro; installing fresh Debian."
+  info "Debian not detected; installing Debian."
   proot-distro install debian
 else
-  info "Debian appears to be installed; reusing it without reset."
+  info "Debian appears installed; reusing without reset."
 fi
 
-info "Checking Debian ARM64 architecture..."
+info "Checking Debian architecture..."
 ARCH="$(proot-distro login debian -- /usr/bin/dpkg --print-architecture 2>/dev/null | tail -n 1 || true)"
-[[ "$ARCH" == "arm64" ]] || die "Debian architecture check failed (reported: ${ARCH:-empty}; expected arm64). No distro reset was attempted." 1
+[[ "$ARCH" == "arm64" ]] || die "Debian reports '${ARCH:-empty}', expected arm64. No reset attempted." 1
 
-info "Installing Debian runtime packages..."
-proot-distro login debian -- /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/bash -c 'apt-get update && apt-get install -y ca-certificates curl git xdg-utils dbus-x11' 
+info "Installing Debian baseline tools..."
+proot-distro login debian -- /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/bash -c 'apt-get update && apt-get install -y ca-certificates curl git xdg-utils dbus-x11'
 
-info "Running the official Google Antigravity CLI installer inside Debian."
-# Google documents this URL for Linux. Upstream script content and behavior may change;
-# show the source URL and require explicit confirmation above before running it.
-proot-distro login debian -- /bin/bash -lc 'set -e; tmp="$(mktemp)"; trap '''rm -f "$tmp"''' EXIT; curl -fsSL https://antigravity.google/cli/install.sh -o "$tmp"; bash "$tmp"'
+info "Fetching Google's official CLI install script inside Debian..."
+# Upstream content can change. User confirmation above precedes its execution.
+proot-distro login debian -- /usr/bin/env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /bin/bash -c 'set -e; tmp="$(mktemp)"; trap '''rm -f "$tmp"''' EXIT; curl -fsSL https://antigravity.google/cli/install.sh -o "$tmp"; bash "$tmp"'
 
-info "Checking whether agy is installed..."
+info "Checking CLI command..."
 if proot-distro login debian -- /usr/bin/env PATH=/root/.local/bin:/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin /bin/bash -c 'command -v agy >/dev/null 2>&1'; then
-  proot-distro login debian -- /usr/bin/env PATH=/root/.local/bin:/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin /bin/bash -c 'agy --version || agy --help' || warn "The CLI exists but its smoke test failed. This may indicate upstream Android/PRoot incompatibility."
-  log ""
-  log "Setup command finished. Next, start Debian with:"
-  log "  proot-distro login debian"
-  log "Then run:"
-  log "  agy"
-  log ""
-  warn "This verifies installation/smoke output only, not a complete authenticated coding session. Authentication and kernel/runtime compatibility remain device-dependent."
+  if ! proot-distro login debian -- /usr/bin/env PATH=/root/.local/bin:/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin /bin/bash -c 'agy --version || agy --help'; then
+    warn "The CLI exists but the smoke test failed; Android/PRoot runtime incompatibility is possible."
+  fi
+  log "CLI install step finished. Enter Debian with: proot-distro login debian"
+  log "Then start the agent with: agy"
+  warn "Install/smoke check does not prove a complete authenticated coding session. Device compatibility remains unverified."
 else
-  warn "The installer finished but 'agy' was not found in a login shell."
-  warn "Inspect the Debian-side install output and retry with: proot-distro login debian"
-  die "CLI installation could not be verified." 1
+  warn "The installer finished but 'agy' was not found on the expected PATH."
+  die "CLI installation could not be verified. Inspect the output above and rerun diagnostics." 1
 fi
 
 log "Done. Diagnostics: bash install.sh --doctor"
